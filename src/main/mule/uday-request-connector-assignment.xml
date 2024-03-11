@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="548bfdc2-df1d-4d89-a602-7a860f8dd200" >
+		<http:listener-connection host="${http.host}" port="${http.port}" />
+	</http:listener-config>
+	<configuration-properties doc:name="Configuration properties" doc:id="74efcf5a-1bb2-4a62-9873-64a889ee3aae" file="${env}.properties" />
+	<global-property doc:name="Global Property" doc:id="836c861d-edc8-45b5-a904-ee6dcc0a8648" name="env" value="dev" />
+	<flow name="uday-request-connector-assignmentFlow" doc:id="1a916b94-7f45-40ec-b32b-3b43a202cf76" >
+		<http:listener doc:name="Listener" doc:id="3d753428-8dc5-4ee2-903d-e96c2db580b4" config-ref="HTTP_Listener_config" path="${http.path}"/>
+		<logger level="INFO" doc:name="Logger" doc:id="13d6bb61-2356-42f7-a64c-241e6e8fed3c" message='#["start of http flow" ++ now () as Time]'/>
+		<set-variable value="#[attributes.queryParams.id]" doc:name="Currency" doc:id="d824ad6d-11ce-4058-88f8-70082f765f7e" variableName="Currency"/>
+		<http:request method="GET" doc:name="Request" doc:id="bf672442-3259-4b38-a095-7aea96c20a8f" url="https://api.coinbase.com/v2/currencies">
+			<http:query-params ><![CDATA[#[output application/java
+---
+{
+	"id" : vars.Currency
+}]]]></http:query-params>
+		</http:request>
+		<choice doc:name="Choice" doc:id="2d35feda-e6ba-46e9-955d-0fc4922c225d" >
+			<when expression='#[attributes.StatusCode == 200]'>
+				<ee:transform doc:name="Transform Message" doc:id="593eed50-8ed7-4030-b8eb-2792553c7162">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+			</when>
+			<otherwise >
+				<ee:transform doc:name="Transform Message" doc:id="42161192-03cb-4246-9c60-4bffcb8290ad" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"message" :" This id related Country is not available in the currency list"
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</otherwise>
+		</choice>
+		<logger level="INFO" doc:name="Logger" doc:id="bc440ee4-829c-41f9-9097-ebdd8b85b149" message='#["end of the http flow" ++ now()]'/>
+	</flow>
+</mule>
